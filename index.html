@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulação de Cobertura Wi-Fi · Site Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A1120;
+    --panel:#101A2E;
+    --panel-2:#0D1626;
+    --border:#213052;
+    --border-soft:#1A2743;
+    --text:#E8EDF6;
+    --text-dim:#8FA0BD;
+    --text-faint:#5B6D8C;
+    --cyan:#4DD9D0;
+    --cyan-dim:#1F5C58;
+    --excelente:#22C55E;
+    --bom:#A3E635;
+    --regular:#F5B301;
+    --ruim:#EF4444;
+    --font-display:'Space Grotesk', sans-serif;
+    --font-body:'IBM Plex Sans', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--font-body);}
+  body{padding:0 0 80px 0;}
+
+  .scan-strip{
+    height:3px;width:100%;
+    background:linear-gradient(90deg,var(--ruim),var(--regular),var(--bom),var(--excelente),var(--cyan));
+    opacity:.8;
+  }
+
+  header.hero{
+    padding:48px 24px 32px;
+    max-width:1100px;margin:0 auto;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--cyan);display:flex;align-items:center;gap:10px;margin-bottom:14px;
+  }
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+  h1{
+    font-family:var(--font-display);
+    font-size:clamp(28px,4vw,44px);
+    font-weight:600;
+    margin:0 0 12px;
+    line-height:1.1;
+  }
+  .hero-sub{color:var(--text-dim);font-size:16px;max-width:640px;line-height:1.55;margin:0 0 24px;}
+
+  .disclaimer{
+    background:linear-gradient(135deg, rgba(245,179,1,.09), rgba(245,179,1,.03));
+    border:1px solid rgba(245,179,1,.35);
+    border-radius:10px;
+    padding:16px 18px;
+    font-size:13.5px;
+    color:#F0D28A;
+    line-height:1.6;
+    display:flex;gap:12px;
+  }
+  .disclaimer b{color:#FFD877;}
+  .disclaimer .ico{font-family:var(--font-mono);font-weight:600;flex-shrink:0;}
+
+  main{max-width:1100px;margin:0 auto;padding:0 24px;}
+  section{padding:44px 0;border-bottom:1px solid var(--border-soft);}
+  section:last-of-type{border-bottom:none;}
+
+  .section-label{
+    font-family:var(--font-mono);
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--text-faint);margin-bottom:8px;
+  }
+  h2{font-family:var(--font-display);font-size:24px;font-weight:600;margin:0 0 6px;}
+  .section-desc{color:var(--text-dim);font-size:14.5px;max-width:640px;line-height:1.6;margin:0 0 24px;}
+
+  /* Premises grid */
+  .premises-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:1px;background:var(--border-soft);
+    border:1px solid var(--border-soft);border-radius:10px;overflow:hidden;
+  }
+  .premise{background:var(--panel);padding:16px 18px;}
+  .premise .k{font-family:var(--font-mono);font-size:11px;color:var(--cyan);letter-spacing:.06em;margin-bottom:6px;}
+  .premise .v{font-size:13.5px;color:var(--text);line-height:1.5;}
+
+  /* Plan + heatmap */
+  .plan-wrap{
+    display:grid;grid-template-columns:1fr 260px;gap:24px;
+    align-items:start;
+  }
+  @media(max-width:820px){.plan-wrap{grid-template-columns:1fr;}}
+
+  .plan-panel{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:20px;
+    position:relative;
+  }
+  .plan-toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:14px;flex-wrap:wrap;gap:10px;
+  }
+  .band-toggle{display:flex;gap:6px;background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:3px;}
+  .band-toggle button{
+    font-family:var(--font-mono);font-size:12px;letter-spacing:.03em;
+    background:transparent;border:none;color:var(--text-dim);
+    padding:7px 14px;border-radius:6px;cursor:pointer;transition:.15s;
+  }
+  .band-toggle button.active{background:var(--cyan-dim);color:var(--cyan);}
+  .view-toggle button{
+    font-family:var(--font-mono);font-size:12px;
+    background:var(--panel);border:1px solid var(--border);color:var(--text-dim);
+    padding:7px 14px;border-radius:8px;cursor:pointer;
+  }
+  .view-toggle button.active{border-color:var(--cyan);color:var(--cyan);}
+
+  .plan-stage{
+    perspective:1400px;
+    display:flex;justify-content:center;
+    background:radial-gradient(ellipse at 50% 20%, #0F1B33 0%, #0A1120 70%);
+    border-radius:10px;padding:12px 0;
+  }
+  #planSvg{width:100%;max-width:420px;height:auto;display:block;transition:transform .6s cubic-bezier(.2,.8,.2,1);}
+  .plan-stage.iso #planSvg{transform:rotateX(48deg) rotateZ(-8deg) scale(.92);}
+
+  .room-fill{transition:fill .4s ease;}
+  .room-outline{fill:none;stroke:#2B3D63;stroke-width:2;}
+  .room-label{font-family:var(--font-mono);font-size:10.5px;fill:#0A1120;font-weight:600;}
+  .room-label-outdoor{fill:#DDE6F5;}
+  .room-sub{font-family:var(--font-mono);font-size:8.5px;fill:#1c2b45;opacity:.8;}
+  .router-pulse{animation:ring 2.4s ease-out infinite;}
+  @keyframes ring{
+    0%{r:6;opacity:.9;}
+    100%{r:120;opacity:0;}
+  }
+  .router-dot{fill:var(--cyan);stroke:#08251F;stroke-width:2;}
+
+  .legend-panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:20px;font-size:13px;
+  }
+  .legend-title{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;}
+  .legend-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .swatch{width:16px;height:16px;border-radius:4px;flex-shrink:0;}
+  .legend-row .label{color:var(--text);font-weight:500;}
+  .legend-row .range{color:var(--text-faint);font-family:var(--font-mono);font-size:11px;margin-left:auto;}
+  .legend-divider{height:1px;background:var(--border-soft);margin:14px 0;}
+  .router-key{display:flex;align-items:center;gap:10px;color:var(--text-dim);font-size:12.5px;}
+  .router-key .dot{width:12px;height:12px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan);}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead th{
+    text-align:left;font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--text-faint);padding:10px 12px;border-bottom:1px solid var(--border);
+  }
+  tbody td{padding:12px;border-bottom:1px solid var(--border-soft);vertical-align:top;}
+  tbody tr:hover{background:rgba(77,217,208,.04);}
+  .room-name{font-weight:600;color:var(--text);}
+  .room-note{color:var(--text-dim);font-size:12.5px;line-height:1.5;max-width:280px;}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--font-mono);font-size:11.5px;font-weight:600;
+    padding:4px 9px;border-radius:20px;
+  }
+  .pill .dot{width:7px;height:7px;border-radius:50%;}
+  .num{font-family:var(--font-mono);color:var(--text-dim);}
+
+  /* Shadow zones */
+  .shadow-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;}
+  .shadow-card{
+    background:linear-gradient(135deg, rgba(239,68,68,.08), transparent);
+    border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:18px;
+  }
+  .shadow-card h3{margin:0 0 8px;font-family:var(--font-display);font-size:16px;color:#FCA5A5;}
+  .shadow-card p{margin:0;color:var(--text-dim);font-size:13px;line-height:1.6;}
+
+  .reco-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;}
+  .reco-list li{
+    display:flex;gap:12px;padding:14px 16px;background:var(--panel);border:1px solid var(--border-soft);border-radius:10px;
+  }
+  .reco-list .n{font-family:var(--font-mono);color:var(--cyan);font-weight:600;flex-shrink:0;}
+  .reco-list .t{font-size:13.5px;color:var(--text-dim);line-height:1.55;}
+  .reco-list .t b{color:var(--text);}
+
+  footer{max-width:1100px;margin:0 auto;padding:32px 24px 0;color:var(--text-faint);font-size:12px;line-height:1.7;}
+</style>
+</head>
+<body>
+<div class="scan-strip"></div>
+
+<header class="hero">
+  <div class="eyebrow"><span class="dot"></span> RELATÓRIO DE SITE SURVEY · WI-FI DUAL-BAND</div>
+  <h1>Simulação de Cobertura Wi-Fi</h1>
+  <p class="hero-sub">Modelagem de propagação de sinal 2,4 GHz e 5 GHz para a residência, a partir da planta baixa manuscrita fornecida. Roteador posicionado na Sala.</p>
+  <div class="disclaimer">
+    <span class="ico">⚠</span>
+    <div><b>Isto é uma SIMULAÇÃO, não uma medição real.</b> Os valores de sinal (dBm), notas e o mapa de calor foram estimados por um modelo matemático de propagação (perda por distância + perda por parede/porta), a partir de dimensões e materiais assumidos como hipóteses técnicas — a planta não trazia escala nem cotas. Para números reais, é necessário um site survey com equipamento (ex.: Ekahau, NetSpot, Wi-Fi Analyzer) no local.</div>
+  </div>
+</header>
+
+<main>
+
+<section id="premises">
+  <div class="section-label">01 · Base da simulação</div>
+  <h2>Premissas e hipóteses assumidas</h2>
+  <p class="section-desc">A planta enviada não continha escala, cotas ou espessura de paredes. As hipóteses abaixo foram usadas para viabilizar o cálculo — todas realistas para uma residência térrea brasileira padrão.</p>
+  <div class="premises-grid">
+    <div class="premise"><div class="k">DIMENSÕES ASSUMIDAS</div><div class="v">Lote de 6 m de frente × 17 m de fundo. Quintal 6×4 m, Quartos ~4×3 m, Banheiro/Cozinha ~2×3 m, Sala 6×4 m, Pátio 6×3 m.</div></div>
+    <div class="premise"><div class="k">PAREDES</div><div class="v">Alvenaria comum (tijolo + reboco, ~15 cm) entre cômodos internos e nas fachadas.</div></div>
+    <div class="premise"><div class="k">PORTAS</div><div class="v">Madeira maciça, considerada obstáculo mais leve que uma parede de alvenaria.</div></div>
+    <div class="premise"><div class="k">ROTEADOR</div><div class="v">Dual-band doméstico padrão (~20 dBm EIRP), posicionado na Sala, próximo à parede/porta voltada para o Pátio (posição indicada na planta).</div></div>
+    <div class="premise"><div class="k">PLANO DE INTERNET</div><div class="v">100 Mbps (ex.: Claro). Não altera a intensidade do sinal Wi-Fi — apenas o teto de velocidade quando o sinal é bom.</div></div>
+    <div class="premise"><div class="k">MODELO DE PROPAGAÇÃO</div><div class="v">Log-distance path loss (expoente 2,7 em 2,4 GHz / 3,5 em 5 GHz) + atenuação de 5 dB (2,4 GHz) / 8 dB (5 GHz) por parede de alvenaria e 3 dB / 4 dB por porta de madeira.</div></div>
+  </div>
+</section>
+
+<section id="plan">
+  <div class="section-label">02 · Planta 3D + Heatmap</div>
+  <h2>Mapa de calor de cobertura</h2>
+  <p class="section-desc">Intensidade de sinal simulada, irradiando do roteador (ponto ciano) na Sala. Alterne a banda para comparar 2,4 GHz e 5 GHz, e a vista para uma representação pseudo-3D ilustrativa da planta.</p>
+
+  <div class="plan-wrap">
+    <div class="plan-panel">
+      <div class="plan-toolbar">
+        <div class="band-toggle">
+          <button id="btn24" class="active">2,4 GHz</button>
+          <button id="btn5">5 GHz</button>
+        </div>
+        <div class="view-toggle">
+          <button id="btnFlat" class="active">Planta 2D</button>
+          <button id="btnIso">Vista pseudo-3D</button>
+        </div>
+      </div>
+      <div class="plan-stage" id="stage">
+        <svg id="planSvg" viewBox="0 0 500 1000" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="heatBlur" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="18"/>
+            </filter>
+            <radialGradient id="routerGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#4DD9D0" stop-opacity="0.55"/>
+              <stop offset="100%" stop-color="#4DD9D0" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <!-- heat blobs (blurred, behind crisp outlines) -->
+          <g id="heatBlobs" filter="url(#heatBlur)" opacity="0.9"></g>
+
+          <!-- crisp room fills -->
+          <g id="roomFills"></g>
+
+          <!-- outlines + labels -->
+          <g id="roomOutlines"></g>
+          <g id="roomLabels"></g>
+
+          <!-- router -->
+          <g id="routerGroup"></g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="legend-panel">
+      <div class="legend-title">Legenda de sinal</div>
+      <div class="legend-row"><span class="swatch" style="background:#22C55E"></span><span class="label">Excelente</span><span class="range">9–10</span></div>
+      <div class="legend-row"><span class="swatch" style="background:#A3E635"></span><span class="label">Bom</span><span class="range">7–8</span></div>
+      <div class="legend-row"><span class="swatch" style="background:#F5B301"></span><span class="label">Regular</span><span class="range">4–6</span></div>
+      <div class="legend-row"><span class="swatch" style="background:#EF4444"></span><span class="label">Ruim</span><span class="range">1–3</span></div>
+      <div class="legend-divider"></div>
+      <div class="router-key"><span class="dot"></span> Posição do roteador (Sala)</div>
+      <div class="legend-divider"></div>
+      <div id="legendNote" style="color:var(--text-dim);font-size:12.5px;line-height:1.6;">Cores calculadas por cômodo a partir da distância ao roteador e do número de paredes/portas atravessadas.</div>
+    </div>
+  </div>
+</section>
+
+<section id="table">
+  <div class="section-label">03 · Resultado por ambiente</div>
+  <h2>Tabela de intensidade de sinal</h2>
+  <p class="section-desc">RSSI estimado (dBm) e nota de 1 a 10 para cada cômodo, nas duas bandas.</p>
+  <div style="overflow-x:auto;">
+  <table>
+    <thead>
+      <tr>
+        <th>Ambiente</th>
+        <th>Distância</th>
+        <th>Obstáculos</th>
+        <th>2,4 GHz</th>
+        <th>5 GHz</th>
+        <th>Observação</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  </div>
+</section>
+
+<section id="shadows">
+  <div class="section-label">04 · Diagnóstico</div>
+  <h2>Pontos de sombra</h2>
+  <p class="section-desc">Áreas onde a simulação indica cobertura fraca ou nula.</p>
+  <div class="shadow-grid">
+    <div class="shadow-card">
+      <h3>Quintal</h3>
+      <p>Ponto mais crítico da casa: ~11 m do roteador e 3 paredes de alvenaria no caminho. Em 5 GHz o sinal estimado fica abaixo de -90 dBm (praticamente sem conexão útil); em 2,4 GHz ainda é usável, mas instável para vídeo em tempo real.</p>
+    </div>
+    <div class="shadow-card">
+      <h3>Banheiro e Quarto II</h3>
+      <p>Duas paredes de alvenaria no caminho até o roteador. Em 5 GHz o sinal cai para a faixa "regular", suficiente para navegação simples, mas fraco para streaming em HD ou chamadas de vídeo.</p>
+    </div>
+  </div>
+</section>
+
+<section id="reco">
+  <div class="section-label">05 · Recomendações</div>
+  <h2>Como melhorar a cobertura</h2>
+  <ul class="reco-list">
+    <li><span class="n">01</span><span class="t"><b>Priorize a banda 2,4 GHz</b> para dispositivos no Quintal (câmeras, campainha, som ambiente) — ela atravessa paredes com menos perda que a 5 GHz.</span></li>
+    <li><span class="n">02</span><span class="t"><b>Considere um repetidor ou ponto de acesso mesh</b> próximo ao corredor entre Quarto I/Quarto II, cobrindo simultaneamente Banheiro, Quarto II e estendendo sinal utilizável até o Quintal.</span></li>
+    <li><span class="n">03</span><span class="t"><b>Mantenha o roteador afastado de metais e espelhos</b> do banheiro, que costumam adicionar atenuação extra não capturada neste modelo simplificado.</span></li>
+    <li><span class="n">04</span><span class="t"><b>Sala, Cozinha, Quarto I e Pátio</b> já têm cobertura excelente/boa nas duas bandas — ideais para SmartTV, videochamadas e trabalho remoto em 5 GHz.</span></li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  Relatório gerado por simulação computacional a partir de planta baixa manuscrita, sem medição de campo. Valores de dBm, notas e classificações são estimativas técnicas baseadas em modelo de propagação log-distance e hipóteses de material/dimensão descritas na seção 01. Resultados reais podem variar conforme mobiliário, interferência de outras redes, materiais de acabamento e posição exata do roteador.
+</footer>
+
+<script>
+// ---- Data model (meters, path-loss derived) ----
+// scale: x in [0,6], y in [0,17], router at (3,13)
+const rooms = [
+  {id:'quintal',  name:'Quintal',  outdoor:true,  x0:0,x1:6,y0:0,y1:4,
+    labelPos:[3,2], dist:11.0, obst:'3 paredes de alvenaria',
+    rssi24:-73.1, rssi5:-90.4, score24:5, score5:1,
+    note:'Ponto de sombra: distância máxima e 3 paredes no caminho. 5 GHz praticamente inexistente.'},
+  {id:'quartoII', name:'Quarto II', outdoor:false, x0:0,x1:4,y0:4,y1:7,
+    labelPos:[2,5.5], dist:7.57, obst:'2 paredes de alvenaria',
+    rssi24:-63.7, rssi5:-76.8, score24:7, score5:4,
+    note:'Bom em 2,4 GHz; 5 GHz cai para regular por causa das 2 paredes.'},
+  {id:'banheiro', name:'Banheiro', outdoor:false, x0:4,x1:6,y0:4,y1:7,
+    labelPos:[5,5.5], dist:7.76, obst:'2 paredes de alvenaria',
+    rssi24:-64.0, rssi5:-77.2, score24:7, score5:4,
+    note:'Mesma situação do Quarto II; revestimentos cerâmicos podem piorar um pouco na prática.'},
+  {id:'quartoI', name:'Quarto I', outdoor:false, x0:0,x1:4,y0:7,y1:10,
+    labelPos:[2,8.5], dist:4.61, obst:'1 parede de alvenaria',
+    rssi24:-52.9, rssi5:-61.2, score24:9, score5:7,
+    note:'Distância curta e apenas uma parede — excelente/bom nas duas bandas.'},
+  {id:'cozinha', name:'Cozinha', outdoor:false, x0:4,x1:6,y0:7,y1:10,
+    labelPos:[5,8.5], dist:4.92, obst:'1 parede de alvenaria',
+    rssi24:-53.7, rssi5:-62.2, score24:9, score5:7,
+    note:'Semelhante ao Quarto I; eletrodomésticos metálicos podem causar leve variação real.'},
+  {id:'sala', name:'Sala', outdoor:false, x0:0,x1:6,y0:10,y1:14,
+    labelPos:[3,10.9], dist:2.0, obst:'Ambiente do roteador',
+    rssi24:-38.1, rssi5:-40.5, score24:10, score5:10,
+    note:'Cômodo do roteador — sinal máximo nas duas bandas.'},
+  {id:'patio', name:'Pátio', outdoor:true, x0:0,x1:6,y0:14,y1:17,
+    labelPos:[3,15.5], dist:2.5, obst:'1 porta de madeira',
+    rssi24:-43.75, rssi5:-47.9, score24:10, score5:10,
+    note:'Área externa mas muito próxima do roteador, separada só por uma porta — excelente sinal.'},
+];
+const router = {x:3, y:13};
+
+const colorFor = s => s>=9 ? '#22C55E' : s>=7 ? '#A3E635' : s>=4 ? '#F5B301' : '#EF4444';
+const labelFor = s => s>=9 ? 'Excelente' : s>=7 ? 'Bom' : s>=4 ? 'Regular' : 'Ruim';
+
+// ---- SVG geometry ----
+const S = 55, OX = 70, OY = 50;
+const px = m => OX + m*S;
+const py = m => OY + m*S;
+const svgNS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs){
+  const e = document.createElementNS(svgNS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+const heatBlobs = document.getElementById('heatBlobs');
+const roomFills = document.getElementById('roomFills');
+const roomOutlines = document.getElementById('roomOutlines');
+const roomLabels = document.getElementById('roomLabels');
+const routerGroup = document.getElementById('routerGroup');
+
+let band = '24';
+
+function render(){
+  heatBlobs.innerHTML = '';
+  roomFills.innerHTML = '';
+  roomOutlines.innerHTML = '';
+  roomLabels.innerHTML = '';
+  routerGroup.innerHTML = '';
+
+  rooms.forEach(r=>{
+    const score = band==='24' ? r.score24 : r.score5;
+    const color = colorFor(score);
+    const x=px(r.x0), y=py(r.y0), w=(r.x1-r.x0)*S, h=(r.y1-r.y0)*S;
+
+    // blurred heat blob
+    heatBlobs.appendChild(el('rect', {x, y, width:w, height:h, fill:color, opacity:0.55}));
+
+    // crisp fill
+    roomFills.appendChild(el('rect', {x, y, width:w, height:h, fill:color, opacity: r.outdoor?0.5:0.72, class:'room-fill'}));
+
+    // outline
+    roomOutlines.appendChild(el('rect', {x, y, width:w, height:h, class:'room-outline', 'stroke-dasharray': r.outdoor?'6,4':'0'}));
+
+    // label
+    const lx = px(r.labelPos[0]), ly = py(r.labelPos[1]);
+    const t1 = el('text', {x:lx, y:ly-4, 'text-anchor':'middle', class: r.outdoor?'room-label room-label-outdoor':'room-label'});
+    t1.textContent = r.name.toUpperCase();
+    roomLabels.appendChild(t1);
+    const t2 = el('text', {x:lx, y:ly+11, 'text-anchor':'middle', class:'room-sub', fill: r.outdoor? '#9FB2CE':'#1c2b45'});
+    t2.textContent = (band==='24'? r.rssi24.toFixed(0) : r.rssi5.toFixed(0)) + ' dBm · ' + labelFor(score);
+    roomLabels.appendChild(t2);
+  });
+
+  // outer boundary (slightly thicker)
+  roomOutlines.appendChild(el('rect', {x:px(0), y:py(0), width:6*S, height:17*S, fill:'none', stroke:'#3B4C74', 'stroke-width':3}));
+
+  // router
+  const rx = px(router.x), ry = py(router.y);
+  routerGroup.appendChild(el('circle', {cx:rx, cy:ry, r:70, fill:'url(#routerGlow)'}));
+  routerGroup.appendChild(el('circle', {cx:rx, cy:ry, r:6, class:'router-pulse', fill:'none', stroke:'#4DD9D0', 'stroke-width':2}));
+  routerGroup.appendChild(el('circle', {cx:rx, cy:ry, r:7, class:'router-dot'}));
+}
+
+// ---- table ----
+const tbody = document.getElementById('tableBody');
+rooms.forEach(r=>{
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="room-name">${r.name}${r.id==='sala' ? ' <span style="color:var(--cyan);font-family:var(--font-mono);font-size:11px;">· ROTEADOR</span>' : ''}</td>
+    <td class="num">${r.dist.toFixed(1)} m</td>
+    <td class="num">${r.obst}</td>
+    <td><span class="pill" style="background:${colorFor(r.score24)}22;color:${colorFor(r.score24)}"><span class="dot" style="background:${colorFor(r.score24)}"></span>${r.score24}/10 · ${labelFor(r.score24)}</span><div class="num" style="margin-top:4px;font-size:11px;">${r.rssi24.toFixed(1)} dBm</div></td>
+    <td><span class="pill" style="background:${colorFor(r.score5)}22;color:${colorFor(r.score5)}"><span class="dot" style="background:${colorFor(r.score5)}"></span>${r.score5}/10 · ${labelFor(r.score5)}</span><div class="num" style="margin-top:4px;font-size:11px;">${r.rssi5.toFixed(1)} dBm</div></td>
+    <td class="room-note">${r.note}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
+// ---- toggles ----
+document.getElementById('btn24').addEventListener('click', e=>{
+  band='24';
+  e.target.classList.add('active');
+  document.getElementById('btn5').classList.remove('active');
+  render();
+});
+document.getElementById('btn5').addEventListener('click', e=>{
+  band='5';
+  e.target.classList.add('active');
+  document.getElementById('btn24').classList.remove('active');
+  render();
+});
+document.getElementById('btnFlat').addEventListener('click', e=>{
+  document.getElementById('stage').classList.remove('iso');
+  e.target.classList.add('active');
+  document.getElementById('btnIso').classList.remove('active');
+});
+document.getElementById('btnIso').addEventListener('click', e=>{
+  document.getElementById('stage').classList.add('iso');
+  e.target.classList.add('active');
+  document.getElementById('btnFlat').classList.remove('active');
+});
+
+render();
+</script>
+</body>
+</html>
